@@ -5,8 +5,9 @@ use crate::models::{Note, CreateNote, UpdateNote};
 pub struct NoteService;
 
 impl NoteService {
-    pub async fn find_all(pool: &MySqlPool) -> Result<Vec<Note>, AppError> {
-        sqlx::query_as::<_, Note>("SELECT * FROM notes ORDER BY created_at DESC")
+    pub async fn find_all(pool: &MySqlPool, user_id: i64) -> Result<Vec<Note>, AppError> {
+        sqlx::query_as::<_, Note>("SELECT * FROM notes WHERE user_id = ? ORDER BY created_at DESC")
+            .bind(user_id)
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))
@@ -21,11 +22,12 @@ impl NoteService {
             .ok_or_else(|| AppError::NotFound(format!("Note {} not found", id)))
     }
 
-    pub async fn create(pool: &MySqlPool, data: CreateNote) -> Result<Note, AppError> {
+    pub async fn create(pool: &MySqlPool, data: CreateNote, user_id: i64) -> Result<Note, AppError> {
         tracing::info!("Creating note: {:?}", data);
-        let result = sqlx::query("INSERT INTO notes (title, content) VALUES (?, ?)")
+        let result = sqlx::query("INSERT INTO notes (title, content, user_id) VALUES (?, ?, ?)")
             .bind(&data.title)
             .bind(&data.content)
+            .bind(user_id)
             .execute(pool)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;

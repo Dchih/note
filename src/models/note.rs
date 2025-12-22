@@ -6,6 +6,7 @@ pub struct Note {
     pub id: i64,
     pub title: String,
     pub content: Option<String>,
+    pub user_id: i64,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }

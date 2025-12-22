@@ -5,9 +5,10 @@ use crate::error::AppError;
 use crate::middleware::Auth;
 use crate::models::{CreateNote, UpdateNote};
 use crate::services::NoteService;
+use crate::utils::Claims;
 
-async fn list(pool: web::Data<MySqlPool>) -> Result<HttpResponse, AppError> {
-    let notes = NoteService::find_all(pool.get_ref()).await?;
+async fn list(pool: web::Data<MySqlPool>, claims: web::ReqData<Claims>) -> Result<HttpResponse, AppError> {
+    let notes = NoteService::find_all(pool.get_ref(), claims.sub).await?;
     Ok(HttpResponse::Ok().json(notes))
 }
 
@@ -23,9 +24,10 @@ async fn get_by_id(
 async fn create(
     pool: web::Data<MySqlPool>,
     body: web::Json<CreateNote>,
+    claims: web::ReqData<Claims>
 ) -> Result<HttpResponse, AppError> {
     tracing::info!("Creating note");
-    let note = NoteService::create(pool.get_ref(), body.into_inner()).await?;
+    let note = NoteService::create(pool.get_ref(), body.into_inner(), claims.sub).await?;
     Ok(HttpResponse::Created().json(note))
 }
 
