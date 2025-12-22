@@ -90,15 +90,26 @@ jobs:
           scp docker-compose.prod.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/opt/note/docker-compose.yml
 
       - name: 🚀 部署
+        env:
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_USER_PASSWORD: ${{ secrets.MYSQL_USER_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
-            cd /opt/note
-            docker compose down
-            docker compose build --no-cache
-            docker compose up -d
-            sleep 15
-            docker compose ps
+          cat > /tmp/.env << EOF
+          APP_HOST=0.0.0.0
+          APP_PORT=8000
+          DATABASE_URL=mysql://note_user:${MYSQL_USER_PASSWORD}@db/note_db
+          JWT_SECRET=${JWT_SECRET}
+          RUST_LOG=info
+          MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+          MYSQL_USER_PASSWORD=${MYSQL_USER_PASSWORD}
           EOF
+
+          scp /tmp/.env ${SERVER_USER}@${SERVER_IP}:/opt/note/.env
+
+          ssh ${SERVER_USER}@${SERVER_IP} 'cd /opt/note && sudo docker compose build --no-cache && sudo docker compose up -d && sleep 15 && sudo docker compose ps'
 
       - name: 🧪 健康检查
         run: |
