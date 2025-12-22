@@ -109,7 +109,10 @@ jobs:
 
           scp /tmp/.env ${SERVER_USER}@${SERVER_IP}:/opt/note/.env
 
-          ssh ${SERVER_USER}@${SERVER_IP} 'cd /opt/note && sudo docker compose build --no-cache && sudo docker compose up -d && sleep 15 && sudo docker compose ps'
+          ssh ${SERVER_USER}@${SERVER_IP} 'cd /opt/note && nohup sudo docker compose up -d --build > /tmp/deploy.log 2>&1 &'
+
+          echo "🚀 部署已在后台启动，可以 SSH 到服务器查看进度："
+          echo "   tail -f /tmp/deploy.log"
 
       - name: 🧪 健康检查
         run: |
