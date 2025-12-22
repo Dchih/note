@@ -45,6 +45,7 @@ async fn main() -> std::io::Result<()> {
             .allow_any_method()
             .allow_any_header()
             .max_age(3600);
+        
         // prod
         // let cors = Cors::default()
         // .allowed_origin("https://your-frontend.com")
