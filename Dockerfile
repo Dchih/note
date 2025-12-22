@@ -1,4 +1,4 @@
-FROM rust:1.89.0 as builder
+FROM rust:1.89.0-slim as builder
 WORKDIR /app
 COPY . .
 RUN cargo build --release
@@ -10,6 +10,6 @@ FROM debian:bookworm-slimRUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 COPY --from=builder /app/target/release/easynote .
-COPY .env .env
-EXPOSE 8080
+# COPY .env .env
+EXPOSE 8000
 CMD ["./easynote"]

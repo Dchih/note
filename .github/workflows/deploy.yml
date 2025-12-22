@@ -1,0 +1,106 @@
+name: 🚀 部署 Note API
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+
+      - name: 🔐 配置 SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 📝 添加服务器指纹
+        run: ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: 📤 上传代码
+        run: |
+          rsync -avz --delete \
+            --exclude '.git' --exclude 'target' --exclude '.env' \
+            ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/opt/note/
+
+      - name: 📝 生成配置文件
+        run: |
+          # 生成 .env 文件
+          cat > .env << EOF
+          APP_HOST=0.0.0.0
+          APP_PORT=8000
+          DATABASE_URL=mysql://easynote:${{ secrets.MYSQL_USER_PASSWORD }}@db/note
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          RUST_LOG=info
+          MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_USER_PASSWORD=${{ secrets.MYSQL_USER_PASSWORD }}
+          EOF
+
+          # 生成 docker-compose.prod.yml 文件
+          cat > docker-compose.prod.yml << EOF
+          version: '3.8'
+          services:
+            db:
+              image: mysql:8.0
+              environment:
+                MYSQL_DATABASE: note
+                MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+                MYSQL_USER: easynote
+                MYSQL_PASSWORD: ${{ secrets.MYSQL_USER_PASSWORD }}
+              volumes:
+                - mysql_data:/var/lib/mysql
+              networks:
+                - note-network
+              healthcheck:
+                test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+
+            api:
+              build: .
+              ports:
+                - "8000:8000"
+              environment:
+                DATABASE_URL: mysql://easynote:${{ secrets.MYSQL_USER_PASSWORD }}@db/note
+                APP_HOST: 0.0.0.0
+                APP_PORT: 8000
+                JWT_SECRET: ${{ secrets.JWT_SECRET }}
+                RUST_LOG: info
+              depends_on:
+                db:
+                  condition: service_healthy
+              networks:
+                - note-network
+              restart: unless-stopped
+
+          volumes:
+            mysql_data:
+
+          networks:
+            note-network:
+          EOF
+
+      - name: 📤 上传配置文件
+        run: |
+          scp .env ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/opt/note/.env
+          scp docker-compose.prod.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/opt/note/docker-compose.yml
+
+      - name: 🚀 部署
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+            cd /opt/note
+            docker compose down
+            docker compose build --no-cache
+            docker compose up -d
+            sleep 15
+            docker compose ps
+          EOF
+
+      - name: 🧪 健康检查
+        run: |
+          sleep 10
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "curl -f http://localhost:8000/health" && echo "✅ 成功" || echo "⚠️ 失败"

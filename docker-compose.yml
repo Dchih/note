@@ -1,0 +1,36 @@
+version: "3.8"
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=Dz0504..
+      - MYSQL_DATABASE=note
+      - MYSQL_USER=easynote
+      - MYSQL_PASSWORD=Dz0504..
+    ports:
+      - 3306:3306
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - note-network
+  easynote:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8000:8000
+    environment:
+      RUST_LOG: info
+      DATABASE_URL: mysql://easynote:Dz0504..@124.220.55.90/note
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+    depends_on:
+      - db
+    networks:
+      - note-network
+
+volumes:
+  mysql_data:
+
+networks:
+  note-network:
