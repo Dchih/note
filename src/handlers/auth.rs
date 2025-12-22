@@ -40,7 +40,7 @@ async fn register(
 ) -> Result<HttpResponse, AppError> {
     let user = UserService::register(pool.get_ref(), body.into_inner()).await?;
     Ok(HttpResponse::Created().json(serde_json::json!({
-        "code": 200,
+        "code": 201,
         "message": "注册成功",
         "data": user
     })))
