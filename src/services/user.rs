@@ -23,7 +23,7 @@ impl UserService {
       .map_err(|e| AppError::Internal(e.to_string()))?;
 
     let result = sqlx::query(
-      "INSERT INTO users (username, password, email) VALUES (?, ?, ?)"
+      "INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)"
     )
       .bind(&data.username)
       .bind(&hashed_password)

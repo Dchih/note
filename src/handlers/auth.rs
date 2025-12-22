@@ -20,7 +20,7 @@ async fn login(
 ) -> Result<HttpResponse, AppError> {
     let user = UserService::find_by_username(pool.get_ref(), &body.username).await?;
 
-    let is_valid = UserService::verify_password(&body.password, &user.password)?;
+    let is_valid = UserService::verify_password(&body.password, &user.password_hash)?;
     if !is_valid {
         return Err(AppError::Unauthorized("用户名或密码错误".to_string()));
     }
