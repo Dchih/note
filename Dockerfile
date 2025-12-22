@@ -3,13 +3,13 @@ WORKDIR /app
 COPY . .
 RUN cargo build --release
 
-FROM debian:bookworm-slimRUN apt-get update && apt-get install -y \
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=builder /app/target/release/easynote .
-# COPY .env .env
 EXPOSE 8000
 CMD ["./easynote"]
