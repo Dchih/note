@@ -18,3 +18,5 @@ actix-cors = "0.7.0"
 jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 futures = "0.3"
 bcrypt = "0.17.1"
+actix-ws = "0.3.0"
+futures-util = "0.3.30"
