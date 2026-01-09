@@ -6,7 +6,10 @@ pub async fn echo(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse
     let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
 
     let peer = req.connection_info().peer_addr().map(|s| s.to_string());
-    tracing::info!("🔗 WebSocket 连接建立: {:?}", peer);
+    if let Some(host) = peer {
+      tracing::info!("🔗 WebSocket 连接建立: {:?}", host);
+    }
+    
 
     let mut stream = stream.aggregate_continuations().max_continuation_size(2_usize.pow(20));
 
