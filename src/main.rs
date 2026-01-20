@@ -8,12 +8,13 @@ mod utils;
 mod middleware;
 
 use crate::config::AppConfig;
+use crate::handlers::{ ChatServer };
+use actix::Actor;  // 需要导入 trait 才能使用 .start()
 
 use actix_web::{App, HttpServer, web};
 use tracing_actix_web::TracingLogger;
 use sqlx::mysql::MySqlPoolOptions;
 use actix_cors::Cors;
-
 
 
 
@@ -40,13 +41,16 @@ async fn main() -> std::io::Result<()> {
 
     let config_data = web::Data::new(config);
 
+    // 在闭包外创建，所有 worker 共享同一个 ChatServer
+    let chat_server = ChatServer::new().start();
+
     HttpServer::new(move || {
         let cors = Cors::default()
             .allow_any_origin()      // 开发环境允许所有来源
             .allow_any_method()
             .allow_any_header()
             .max_age(3600);
-        
+
         // prod
         // let cors = Cors::default()
         // .allowed_origin("https://your-frontend.com")
@@ -59,7 +63,8 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .app_data(config_data.clone())
             .app_data(web::Data::new(pool.clone()))
-            .configure(routes::configure) 
+            .app_data(web::Data::new(chat_server.clone()))  // clone Addr
+            .configure(routes::configure)
     })
     .bind(&addr)?
     .run()
