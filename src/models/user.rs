@@ -13,7 +13,7 @@ pub struct User {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct RegisterReuqest {
+pub struct RegisterRequest {
   pub username: String,
   pub password: String,
   pub email: Option<String>,

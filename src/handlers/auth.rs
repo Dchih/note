@@ -5,7 +5,7 @@ use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::services::UserService;
 use crate::utils::JwtUtil;
-use crate::models::RegisterReuqest;
+use crate::models::RegisterRequest;
 
 #[derive(Debug, Deserialize)]
 pub struct LoginRequest {
@@ -25,7 +25,7 @@ async fn login(
         return Err(AppError::Unauthorized("用户名或密码错误".to_string()));
     }
 
-    let token = JwtUtil::generate_token(1, &config.jwt_secret)?;
+    let token = JwtUtil::generate_token(user.id, &config.jwt_secret)?;
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "code": 200,
@@ -36,7 +36,7 @@ async fn login(
 
 async fn register(
     pool: web::Data<MySqlPool>,
-    body: web::Json<RegisterReuqest>
+    body: web::Json<RegisterRequest>
 ) -> Result<HttpResponse, AppError> {
     let user = UserService::register(pool.get_ref(), body.into_inner()).await?;
     Ok(HttpResponse::Created().json(serde_json::json!({

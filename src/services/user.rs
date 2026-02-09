@@ -1,12 +1,12 @@
 use sqlx::{MySqlPool};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use crate::error::AppError;
-use crate::models::{User, RegisterReuqest};
+use crate::models::{User, RegisterRequest};
 
 pub struct UserService;
 
 impl UserService {
-  pub async fn register(pool: &MySqlPool, data: RegisterReuqest) -> Result<User, AppError> {
+  pub async fn register(pool: &MySqlPool, data: RegisterRequest) -> Result<User, AppError> {
     let exists = sqlx::query_scalar::<_, i64>(
       "SELECT COUNT(*) FROM users WHERE username = ?"
     )

@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse};
 use crate::{error::AppError};
 
-async fn headth_check () -> HttpResponse {
+async fn health_check () -> HttpResponse {
     HttpResponse::Ok().body("OK")
 }
 
@@ -17,6 +17,6 @@ async fn test_error (path: web::Path<String>) -> Result<HttpResponse, AppError>{
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.route("/health", web::get().to(headth_check))
+    cfg.route("/health", web::get().to(health_check))
         .route("/test-error/{type}", web::get().to(test_error));
 }
