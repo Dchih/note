@@ -7,3 +7,4 @@ pub use auth::configure as auth_configure;
 
 pub use ws::ChatServer;
 pub use ws::chat_route;
+pub use ws::ClientMessage;

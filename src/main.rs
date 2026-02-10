@@ -42,7 +42,7 @@ async fn main() -> std::io::Result<()> {
     let config_data = web::Data::new(config);
 
     // 在闭包外创建，所有 worker 共享同一个 ChatServer
-    let chat_server = ChatServer::new().start();
+    let chat_server = ChatServer::new(pool.clone()).start();
 
     HttpServer::new(move || {
         let cors = Cors::default()

@@ -6,13 +6,14 @@ use sqlx::MySqlPool;
 use std::collections::HashMap;
 
 use serde::{Deserialize};
+use crate::services::MessageRepository;
 use crate::utils::JwtUtil;
 use crate::config::AppConfig;
 use crate::services::UserService;
 
 #[derive(Message)]
 #[rtype(result = "()")]
-struct ClientMessage {
+pub struct ClientMessage {
     user_id: i64,
     msg: String
 }
@@ -37,10 +38,11 @@ struct Disconnect {
 
 pub struct ChatServer {
     sessions: HashMap<i64, Recipient<ServerMessage>>,
+    pool: MySqlPool
 }
 impl ChatServer {
-    pub fn new() -> Self {
-        ChatServer { sessions: HashMap::new() }
+    pub fn new(pool: MySqlPool) -> Self {
+        ChatServer { sessions: HashMap::new(), pool}
     }
 }
 impl Actor for ChatServer {
@@ -52,10 +54,11 @@ struct WsSession {
     user_id: i64,
     user_name: String,
     server: Addr<ChatServer>,
+    pool: MySqlPool
 }
 impl WsSession {
-    pub fn new (server: Addr<ChatServer>, user_id: i64, user_name: String) -> Self {
-        WsSession { user_id, user_name, server: server }
+    pub fn new (server: Addr<ChatServer>, user_id: i64, user_name: String, pool: MySqlPool) -> Self {
+        WsSession { user_id, user_name, server, pool }
     }
 }
 impl Actor for WsSession {
@@ -69,6 +72,26 @@ impl Actor for WsSession {
             user_id: self.user_id,
             addr: addr.recipient(),
         });
+
+        let pool = self.pool.clone();
+        ctx.spawn(async move {
+                MessageRepository::get_recent(&pool, 1, 20).await
+            }
+            .into_actor(self)
+            .map(|result, _act, ctx| {
+                match result {
+                    Ok(messages) => {
+                        for msg in messages {
+                            ctx.text(serde_json::to_string(&msg).unwrap());
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("历史消息获取失败: {}", e)
+                    }
+                }
+                
+            })
+        );
     }
     fn stopped(&mut self, _ctx: &mut Self::Context) {
         // 注销
@@ -118,6 +141,13 @@ impl Handler<ClientMessage> for ChatServer {
             recipient.do_send(ServerMessage { msg: broadcast_msg.clone() });
         }
 
+        let pool = self.pool.clone();
+        actix::spawn(async move {
+           if let Err(e) =  MessageRepository::save(&pool, msg.user_id, 1, &msg.msg).await {
+            eprintln!("消息保存失败：{}", e);
+           }
+        });
+
         println!("广播消息: {}", broadcast_msg)
     }
 }
@@ -162,7 +192,7 @@ pub async fn chat_route(
     match token_handled {
         Ok(claims) => {
             let user = UserService::find_by_id(pool.get_ref(), claims.sub).await.map_err(|_| actix_web::error::ErrorUnauthorized("用户不存在"))?;
-            let session = WsSession::new(server.get_ref().clone(), claims.sub, user.username);
+            let session = WsSession::new(server.get_ref().clone(), claims.sub, user.username, pool.get_ref().clone());
             ws::start(session, &req, stream)
         },
         Err(_e) => {
