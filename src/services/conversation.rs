@@ -1,9 +1,10 @@
+use serde::{ Serialize};
 use sqlx::MySqlPool;
 use sqlx::prelude::FromRow;
 use crate::error::AppError;
 use crate::models::{ MemberRole, ConversationType};
 
-#[derive(FromRow)]
+#[derive(FromRow, Serialize)]
 pub struct ConversationRes {
   pub id: i64,
   pub conversation_type: ConversationType,
@@ -51,7 +52,7 @@ impl ConversationServices {
 
     tx.commit().await.map_err(|e| AppError::Internal(e.to_string()))?;
 
-    Ok(conversation_result.last_insert_id().try_into().unwrap())
+    Ok(conversation_result.last_insert_id() as i64)
   }
 
   /**
@@ -59,9 +60,9 @@ impl ConversationServices {
    * 查询需要用fetch_optional fetch_one
    * 写用 execute
    */
-  pub async fn find_by_id(pool: &MySqlPool, id: i64) -> Result<ConversationRes, AppError> {
+  pub async fn _find_by_id(pool: &MySqlPool, id: i64) -> Result<ConversationRes, AppError> {
     sqlx::query_as(
-      "SELECT * FROM conversation WHERE id = ?"
+      "SELECT * FROM conversations WHERE id = ?"
     )
     .bind(id)
     .fetch_optional(pool)
@@ -73,7 +74,7 @@ impl ConversationServices {
   pub async fn get_user_conversations(pool: &MySqlPool, user_id: i64) -> Result<Vec<ConversationRes>, AppError> {
     sqlx::query_as(
       "SELECT c.* FROM conversations c
-      JOIN conversation_members cm ON c.id = cm.conversation_id
+      JOIN conversation_member cm ON c.id = cm.conversation_id
       WHERE cm.user_id = ?"
     )
     .bind(&user_id)

@@ -37,24 +37,36 @@ Rust + Actix-web 的 WebSocket 聊天应用，带笔记功能。
   - `add_member()` — 插入成员记录
   - 自定义 `ConversationRes` 结构体 (FromRow)
 
+### Code Review 修复 (本次完成)
+- [x] `ChatMessage.send_time` → `created_at` (字段名与 SQL 列名对齐)
+- [x] 表名统一为复数 `conversations`、单数 `conversation_member`
+- [x] `.try_into().unwrap()` → `as i64` (安全类型转换)
+- [x] `serde_json::to_string().unwrap()` → `if let Ok(json)` (防御性编程)
+- [x] `ConversationType` 加 `Serialize` derive
+
+### 会话管理 — Handler + 路由 (本次完成)
+- [x] 新建 `src/handlers/conversation.rs`
+  - `POST /conversations` — 创建会话 (create)
+  - `GET /conversations` — 获取我的会话列表 (list)
+  - `POST /conversations/{id}/members` — 添加成员 (add_member)
+- [x] 注册路由 — `src/routes/mod.rs`, `src/handlers/mod.rs`, `src/services/mod.rs`
+
+### 会话接入 WebSocket (进行中)
+- [x] `ClientMessage` 加 `conversation_id` 字段
+- [x] 新增 `ClientMessageRecieve` 结构体 (Deserialize 客户端 JSON)
+- [x] `WsSession::StreamHandler` 解析 JSON 并转发带 conversation_id 的消息
+- [x] `ChatServer` 加 `rooms: HashMap<i64, HashSet<i64>>` 房间系统
+- [x] `Join` 消息 + `Handler<Join>` — 用户加入房间
+- [ ] **`Handler<ClientMessage>` 按房间广播** (下次继续)
+- [ ] `Handler<Disconnect>` 从 rooms 中清理用户
+- [ ] `WsSession::StreamHandler` 处理客户端 Join 请求
+- [ ] `WsSession::started()` 去掉硬编码 conversation_id = 1
+
 ## 待完成
-
-### 会话管理 — Handler + 路由 (下一步)
-- [ ] 新建 `src/handlers/conversation.rs`
-  - `POST /conversations` — 创建会话
-  - `GET /conversations` — 获取我的会话列表
-  - `POST /conversations/{id}/members` — 添加成员
-- [ ] 注册路由 — `src/routes/mod.rs`, `src/handlers/mod.rs`, `src/services/mod.rs`
-
-### 会话接入 WebSocket
-- [ ] ClientMessage 加 conversation_id 字段 (去掉硬编码的 1)
-- [ ] 客户端发消息时指定 conversation_id
-- [ ] 按 conversation_id 隔离消息广播 (目前是全局广播)
 
 ### 其他待办
 - [ ] 群聊创建逻辑 (create 中 members_num > 1 分支)
 - [ ] 清理未使用的 import 和 warning
-- [ ] Conversation models 中 `ConversationType` 枚举实际使用
 - [ ] 生产环境配置 (CORS 限制、JWT_SECRET 更换)
 
 ## 关键设计决策
@@ -64,6 +76,8 @@ Rust + Actix-web 的 WebSocket 聊天应用，带笔记功能。
 4. **事务** — `pool.begin()` 开启，`tx.commit()` 提交，中途 ? 返回自动 ROLLBACK
 5. **私聊角色** — 双方都是 Member，Owner 只在群聊使用
 6. **conversation_type** — API 参数中省略，由 member_ids.len() 推导
+7. **房间系统 (方案 A)** — 客户端主动发 Join 加入房间，不自动加入全部会话
+8. **ChatServer 双 HashMap** — `sessions` (user_id→addr) + `rooms` (conversation_id→HashSet\<user_id\>)，一个用户可同时在多个房间
 
 ## 项目结构
 ```
@@ -75,7 +89,7 @@ src/
 │   ├── auth.rs               — 登录/注册
 │   ├── note.rs               — 笔记 CRUD
 │   ├── ws.rs                 — ChatServer + WsSession + WebSocket 路由
-│   └── conversation.rs       — (待创建) 会话 API
+│   └── conversation.rs       — 会话 API (create/list/add_member)
 ├── middleware/auth.rs        — JWT 认证中间件
 ├── models/
 │   ├── user.rs               — User

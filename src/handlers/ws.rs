@@ -2,10 +2,14 @@ use actix_web::{ HttpRequest, HttpResponse, web, Error };
 use actix_web_actors::ws;
 use actix::prelude::*;
 use actix::Recipient;
+use serde::Serialize;
 use sqlx::MySqlPool;
 use std::collections::HashMap;
+use std::collections::HashSet;
+use std::hash::Hash;
 
 use serde::{Deserialize};
+use crate::error::AppError;
 use crate::services::MessageRepository;
 use crate::utils::JwtUtil;
 use crate::config::AppConfig;
@@ -15,11 +19,18 @@ use crate::services::UserService;
 #[rtype(result = "()")]
 pub struct ClientMessage {
     user_id: i64,
-    msg: String
+    msg: String,
+    conversation_id: i64,
 }
 #[derive(Message, Clone)]
 #[rtype(result = "()")]
 struct ServerMessage {
+    msg: String
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ClientMessageRecieve {
+    conversation_id: i64,
     msg: String
 }
 
@@ -36,13 +47,25 @@ struct Disconnect {
     user_id: i64,
 }
 
+#[derive(Message)]
+#[rtype(result = "()")]
+struct Join {
+    user_id: i64,
+    conversation_id: i64
+}
+
 pub struct ChatServer {
     sessions: HashMap<i64, Recipient<ServerMessage>>,
+    rooms: HashMap<i64, HashSet<i64>>,
     pool: MySqlPool
 }
 impl ChatServer {
     pub fn new(pool: MySqlPool) -> Self {
-        ChatServer { sessions: HashMap::new(), pool}
+        ChatServer { 
+            sessions: HashMap::new(),
+            pool,
+            rooms: HashMap::new()
+        }
     }
 }
 impl Actor for ChatServer {
@@ -82,7 +105,9 @@ impl Actor for WsSession {
                 match result {
                     Ok(messages) => {
                         for msg in messages {
-                            ctx.text(serde_json::to_string(&msg).unwrap());
+                            if let Ok(json) = serde_json::to_string(&msg) {
+                                ctx.text(json);
+                            }
                         }
                     },
                     Err(e) => {
@@ -111,10 +136,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsSession {
         match msg {
             Ok(ws::Message::Text(text)) => {
                 // 处理客户端消息
-                self.server.do_send(ClientMessage {
-                    user_id: self.user_id,
-                    msg: text.to_string()
-                });
+                if let Ok(ClientMessageRecieve { conversation_id, msg}) = serde_json::from_str::<ClientMessageRecieve>(&text) {
+                    self.server.do_send(ClientMessage {
+                        user_id: self.user_id,
+                        msg,
+                        conversation_id
+                    });
+                } 
             },
             Ok(ws::Message::Ping(text)) => {
                 ctx.pong(&text);
@@ -172,6 +200,15 @@ impl Handler<Disconnect> for ChatServer {
     }
 }
 
+impl Handler<Join> for ChatServer {
+    type Result = ();
+
+    fn handle(&mut self, msg: Join, ctx: &mut Self::Context) -> Self::Result {
+        self.rooms.entry(msg.conversation_id)
+                .or_insert_with(HashSet::new)
+                .insert(msg.user_id);
+    }
+}
 
 #[derive(Deserialize)]
 pub struct Token {

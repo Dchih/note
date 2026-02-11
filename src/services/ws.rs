@@ -1,11 +1,11 @@
 use sqlx::{MySqlPool};
-use crate::{error::AppError, handlers::ClientMessage};
+use crate::{error::AppError};
 
 #[derive(sqlx::FromRow, serde::Serialize)]
 pub struct ChatMessage {
     pub sender_id: i64,
     pub content: String,
-    pub send_time: chrono::DateTime<chrono::Utc>
+    pub created_at: chrono::DateTime<chrono::Utc>
 }
 
 pub struct MessageRepository;

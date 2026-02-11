@@ -1,7 +1,8 @@
+use serde::Serialize;
 use sqlx::FromRow;
 use chrono::{ DateTime, Utc };
 
-#[derive(Debug, Clone, sqlx::Type)]
+#[derive(Debug, Clone, sqlx::Type, Serialize)]
 #[sqlx(type_name = "SMALLINT")]
 #[repr(i16)]
 pub enum ConversationType {
@@ -10,7 +11,7 @@ pub enum ConversationType {
 }
 
 #[derive(Debug, FromRow)]
-pub struct Conversation {
+pub struct _Conversation {
   pub id: i64,
   #[sqlx(rename = "type")]
   pub conversation_type: ConversationType,
@@ -39,18 +40,18 @@ pub struct ConversationMember {
 
 #[derive(Debug, Clone, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
-pub enum MessageType {
+pub enum _MessageType {
   Text,
   Image,
   File
 }
 
 #[derive(Debug, FromRow)]
-pub struct Message {
+pub struct _Message {
   pub id: i64,
   pub conversation_id: i64,
   pub sender_id: i64, 
   pub content: String,
-  pub msg_type: MessageType,
+  pub msg_type: _MessageType,
   pub created_at: DateTime<Utc>
 }
