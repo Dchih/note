@@ -51,16 +51,15 @@ Rust + Actix-web 的 WebSocket 聊天应用，带笔记功能。
   - `POST /conversations/{id}/members` — 添加成员 (add_member)
 - [x] 注册路由 — `src/routes/mod.rs`, `src/handlers/mod.rs`, `src/services/mod.rs`
 
-### 会话接入 WebSocket (进行中)
+### 会话接入 WebSocket (已完成)
 - [x] `ClientMessage` 加 `conversation_id` 字段
-- [x] 新增 `ClientMessageRecieve` 结构体 (Deserialize 客户端 JSON)
-- [x] `WsSession::StreamHandler` 解析 JSON 并转发带 conversation_id 的消息
+- [x] `ClientAction` 枚举替代 `ClientMessageRecieve` (serde tag 自动分发 Join/Msg)
+- [x] `WsSession::StreamHandler` 解析 JSON，match 分发 Join 和 Msg
 - [x] `ChatServer` 加 `rooms: HashMap<i64, HashSet<i64>>` 房间系统
-- [x] `Join` 消息 + `Handler<Join>` — 用户加入房间
-- [ ] **`Handler<ClientMessage>` 按房间广播** (下次继续)
-- [ ] `Handler<Disconnect>` 从 rooms 中清理用户
-- [ ] `WsSession::StreamHandler` 处理客户端 Join 请求
-- [ ] `WsSession::started()` 去掉硬编码 conversation_id = 1
+- [x] `Join` 消息 + `Handler<Join>` — 加入房间 + 加载历史消息
+- [x] `Handler<ClientMessage>` 按房间广播 (遍历 room members → sessions 查 addr)
+- [x] `Handler<Disconnect>` 从所有 rooms 中清理用户
+- [x] `WsSession::started()` 去掉硬编码，历史消息加载移至 Handler<Join>
 
 ## 待完成
 

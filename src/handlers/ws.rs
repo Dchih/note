@@ -1,3 +1,4 @@
+use actix_web::dev::Server;
 use actix_web::{ HttpRequest, HttpResponse, web, Error };
 use actix_web_actors::ws;
 use actix::prelude::*;
@@ -6,7 +7,6 @@ use serde::Serialize;
 use sqlx::MySqlPool;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::hash::Hash;
 
 use serde::{Deserialize};
 use crate::error::AppError;
@@ -28,10 +28,18 @@ struct ServerMessage {
     msg: String
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ClientMessageRecieve {
-    conversation_id: i64,
-    msg: String
+// #[derive(Debug, Deserialize, Serialize)]
+// pub struct ClientMessageRecieve {
+//     conversation_id: i64,
+//     msg: String
+// }
+#[derive(Deserialize)]
+#[serde(tag = "action")]
+enum ClientAction {
+    #[serde(rename = "join")]
+    Join { conversation_id: i64 },
+    #[serde(rename = "msg")]
+    Msg { conversation_id: i64, msg: String }
 }
 
 #[derive(Message)]
@@ -55,8 +63,15 @@ struct Join {
 }
 
 pub struct ChatServer {
+    /**
+     * This i64 is for user_id
+     */
     sessions: HashMap<i64, Recipient<ServerMessage>>,
-    rooms: HashMap<i64, HashSet<i64>>,
+    /**
+     * HashMap<i64... The first i64 is for conversation_id
+     * HashSet<i64> The second i64 is for user_id
+     */
+    rooms: HashMap<i64, HashSet<i64>>,  
     pool: MySqlPool
 }
 impl ChatServer {
@@ -96,27 +111,7 @@ impl Actor for WsSession {
             addr: addr.recipient(),
         });
 
-        let pool = self.pool.clone();
-        ctx.spawn(async move {
-                MessageRepository::get_recent(&pool, 1, 20).await
-            }
-            .into_actor(self)
-            .map(|result, _act, ctx| {
-                match result {
-                    Ok(messages) => {
-                        for msg in messages {
-                            if let Ok(json) = serde_json::to_string(&msg) {
-                                ctx.text(json);
-                            }
-                        }
-                    },
-                    Err(e) => {
-                        eprintln!("历史消息获取失败: {}", e)
-                    }
-                }
-                
-            })
-        );
+        
     }
     fn stopped(&mut self, _ctx: &mut Self::Context) {
         // 注销
@@ -136,12 +131,22 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsSession {
         match msg {
             Ok(ws::Message::Text(text)) => {
                 // 处理客户端消息
-                if let Ok(ClientMessageRecieve { conversation_id, msg}) = serde_json::from_str::<ClientMessageRecieve>(&text) {
-                    self.server.do_send(ClientMessage {
-                        user_id: self.user_id,
-                        msg,
-                        conversation_id
-                    });
+                if let Ok(action) = serde_json::from_str::<ClientAction>(&text) {
+                    match action {
+                        ClientAction::Join { conversation_id } => {
+                            self.server.do_send(Join {
+                                user_id: self.user_id,
+                                conversation_id
+                            });
+                        },
+                        ClientAction::Msg { conversation_id, msg } => {
+                            self.server.do_send(ClientMessage {
+                                user_id: self.user_id,
+                                msg,
+                                conversation_id
+                            });
+                        }
+                    }
                 } 
             },
             Ok(ws::Message::Ping(text)) => {
@@ -164,14 +169,18 @@ impl Handler<ClientMessage> for ChatServer {
 
     fn handle(&mut self, msg: ClientMessage, _ctx: &mut Self::Context) -> Self::Result {
         let broadcast_msg = format!("用户{}: {}", msg.user_id, msg.msg);
-
-        for (_id, recipient) in &self.sessions {
-            recipient.do_send(ServerMessage { msg: broadcast_msg.clone() });
+        
+        if let Some(room_members) = self.rooms.get(&msg.conversation_id) {
+            for user_id in room_members {
+                if let Some(recipient) = self.sessions.get(user_id) {
+                    recipient.do_send(ServerMessage { msg: broadcast_msg.clone() });
+                }
+            }
         }
 
         let pool = self.pool.clone();
         actix::spawn(async move {
-           if let Err(e) =  MessageRepository::save(&pool, msg.user_id, 1, &msg.msg).await {
+           if let Err(e) =  MessageRepository::save(&pool, msg.user_id, msg.conversation_id, &msg.msg).await {
             eprintln!("消息保存失败：{}", e);
            }
         });
@@ -196,6 +205,9 @@ impl Handler<Disconnect> for ChatServer {
 
     fn handle(&mut self, msg: Disconnect, _ctx: &mut Self::Context) -> Self::Result {
         self.sessions.remove(&msg.user_id);
+        for (_key, room) in &mut self.rooms {
+            room.remove(&msg.user_id);
+        }
         println!("用户 {} 已断开，当前在线: {}", msg.user_id, self.sessions.len());
     }
 }
@@ -203,10 +215,25 @@ impl Handler<Disconnect> for ChatServer {
 impl Handler<Join> for ChatServer {
     type Result = ();
 
-    fn handle(&mut self, msg: Join, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: Join, _ctx: &mut Self::Context) -> Self::Result {
         self.rooms.entry(msg.conversation_id)
                 .or_insert_with(HashSet::new)
                 .insert(msg.user_id);
+        
+        let pool = self.pool.clone();
+        let recipient = self.sessions.get(&msg.user_id).cloned();
+
+        actix::spawn(async move {
+           if let Ok(messages) =  MessageRepository::get_recent(&pool, msg.conversation_id, 20).await {
+                if let Some(recipient) = recipient {
+                    for message in messages {
+                        if let Ok(m) = serde_json::to_string(&message) {
+                            recipient.do_send(ServerMessage { msg: m });
+                        }
+                    }
+                }
+            }
+        });
     }
 }
 
