@@ -7,6 +7,7 @@ use crate::models::{ MemberRole, ConversationType};
 #[derive(FromRow, Serialize)]
 pub struct ConversationRes {
   pub id: i64,
+  #[sqlx(rename = "type")]
   pub conversation_type: ConversationType,
   pub name: Option<String>,
   pub created_at: chrono::DateTime<chrono::Utc>,
@@ -21,7 +22,7 @@ impl ConversationServices {
     let mut tx = pool.begin().await.map_err(|e| AppError::Internal(e.to_string()))?;
 
     let conversation_result = sqlx::query(
-      "INSERT INTO conversations (conversation_type, name, is_deleted) VALUES (0, ?, false)"
+      "INSERT INTO conversations (`type`, name, is_deleted) VALUES (0, ?, false)"
     )
     .bind(&name)
     .execute(&mut *tx)

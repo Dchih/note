@@ -6,6 +6,7 @@ pub struct User {
   pub id: i64,
   pub username: String,
   #[serde(skip_serializing)]
+  #[sqlx(rename = "password")]
   pub password_hash: String,
   pub email: Option<String>,
   pub created_at: chrono::DateTime<chrono::Utc>,

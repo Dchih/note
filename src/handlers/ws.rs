@@ -28,11 +28,6 @@ struct ServerMessage {
     msg: String
 }
 
-// #[derive(Debug, Deserialize, Serialize)]
-// pub struct ClientMessageRecieve {
-//     conversation_id: i64,
-//     msg: String
-// }
 #[derive(Deserialize)]
 #[serde(tag = "action")]
 enum ClientAction {
@@ -64,7 +59,7 @@ struct Join {
 
 pub struct ChatServer {
     /**
-     * This i64 is for user_id
+     * This i64 is for user_id  
      */
     sessions: HashMap<i64, Recipient<ServerMessage>>,
     /**
@@ -90,7 +85,7 @@ impl Actor for ChatServer {
 struct WsSession {
     // TODO(human): 把 id: usize 替换为真实用户身份字段，并修改 new() 的参数和构造
     user_id: i64,
-    user_name: String,
+    user_name: String,                                                
     server: Addr<ChatServer>,
     pool: MySqlPool
 }
