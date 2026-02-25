@@ -8,3 +8,4 @@ pub use note::NoteService;
 pub use user::UserService;
 pub use ws::MessageRepository;
 pub use conversation::ConversationServices;
+pub use friendship::FriednShipService;

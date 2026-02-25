@@ -1,3 +1,4 @@
+use actix_web::{HttpRequest, HttpResponse};
 use sqlx::MySqlPool;
 
 use crate::{error::AppError, models::FriendShip};
@@ -81,6 +82,21 @@ impl FriednShipService {
     .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(true)
+  }
+
+  // 查询所有 receiver_id = user_id 且 status = 'pending' 的记录
+  // 返回 Result<Vec<FriendShip>, AppError>
+  pub async fn list_pending(pool: &MySqlPool, user_id: i64) -> Result<Vec<FriendShip>, AppError> {
+    // todo!()
+    let result = sqlx::query_as::<_, FriendShip>(
+      "SELECT * FROM friendships WHERE receiver_id = ? AND status = 'pending'"
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(result)
   }
 
   pub async fn is_friend(pool: &MySqlPool, requester_id: i64, receiver_id: i64) -> Result<bool, AppError> {
