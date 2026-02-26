@@ -1,5 +1,14 @@
 use actix_web::{HttpResponse, ResponseError};
+use serde::Serialize;
 use std::fmt;
+
+#[derive(Debug, Serialize)]
+#[allow(dead_code)]
+pub struct FieldError {
+    pub field: String,
+    pub code: String,
+}
+
 
 #[derive(Debug)]
 pub enum AppError {
@@ -7,6 +16,8 @@ pub enum AppError {
     BadRequest(String),
     Internal(String),
     Unauthorized(String),
+    #[allow(dead_code)]
+    Validation(Vec<FieldError>)
 }
 
 impl fmt::Display for AppError {
@@ -16,6 +27,7 @@ impl fmt::Display for AppError {
             AppError::BadRequest(msg) => write!(f, "Bad Request: {}", msg),
             AppError::Internal(msg) => write!(f, "Internal Error: {}", msg),
             AppError::Unauthorized(msg) => write!(f, "Unauthorized: {}", msg),
+            AppError::Validation(errors) => write!(f, "Validation Failed: {} errors", errors.len()),
         }
     }
 }
@@ -42,10 +54,16 @@ impl ResponseError for AppError {
                     "message": "Internal Server Error"  // 不暴露内部细节
                 }))
             }
-            AppError::Unauthorized(msg) => { 
+            AppError::Unauthorized(msg) => {
                 HttpResponse::Unauthorized().json(serde_json::json!({
                     "code": 401,
                     "message": msg
+                }))
+            }
+            AppError::Validation(errors) => {
+                HttpResponse::UnprocessableEntity().json(serde_json::json!({
+                    "msg": "Validation Failed",
+                    "err": errors
                 }))
             }
         }

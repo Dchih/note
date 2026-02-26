@@ -30,6 +30,7 @@ pub enum MemberRole {
 }
 
 #[derive(Debug, FromRow)]
+#[allow(dead_code)]
 pub struct ConversationMember {
   pub id: i64,
   pub conversation_id: i64,

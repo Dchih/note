@@ -19,11 +19,38 @@ pub struct ConversationServices;
 impl ConversationServices {
   pub async fn create(pool: &MySqlPool, user_id: i64, name: Option<String>, member_ids: Vec<i64> ) -> Result<i64, AppError> {
     let members_num = member_ids.len();
+    let conv_type = if members_num > 1 { ConversationType::Group } else { ConversationType::Private };
+
+    // 私聊查重：如果已存在两人之间的 Private 会话，直接返回已有的 id
+    if members_num == 1 {
+      let other_id = member_ids[0];
+      let result = sqlx::query_scalar::<_, i64>(
+        "SELECT c.id
+              FROM conversations c
+              JOIN conversation_member cm1
+                ON c.id = cm1.conversation_id AND cm1.user_id = ?
+              JOIN conversation_member cm2
+                ON c.id = cm2.conversation_id AND cm2.user_id = ?
+              WHERE c.type = 0
+              LIMIT 1"
+      )
+      .bind(user_id)
+      .bind(other_id)
+      .fetch_optional(pool)
+      .await
+      .map_err(|e| AppError::Internal(e.to_string()))?;
+
+      if let Some(conversation_id) = result {
+        return Ok(conversation_id);
+      }
+    }
+
     let mut tx = pool.begin().await.map_err(|e| AppError::Internal(e.to_string()))?;
 
     let conversation_result = sqlx::query(
-      "INSERT INTO conversations (`type`, name, is_deleted) VALUES (0, ?, false)"
+      "INSERT INTO conversations (`type`, name, is_deleted) VALUES (?, ?, false)"
     )
+    .bind(&conv_type)
     .bind(&name)
     .execute(&mut *tx)
     .await

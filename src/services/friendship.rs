@@ -1,4 +1,3 @@
-use actix_web::{HttpRequest, HttpResponse};
 use sqlx::MySqlPool;
 
 use crate::{error::AppError, models::FriendShip};
@@ -99,6 +98,7 @@ impl FriednShipService {
     Ok(result)
   }
 
+  #[allow(dead_code)]
   pub async fn is_friend(pool: &MySqlPool, requester_id: i64, receiver_id: i64) -> Result<bool, AppError> {
     let result = sqlx::query_as::<_, FriendShip>(
       "SELECT * from friendships WHERE status = 'accepted' AND ((requester_id = ? AND receiver_id = ?) OR (requester_id = ? AND receiver_id = ?))"

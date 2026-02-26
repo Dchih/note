@@ -1,15 +1,12 @@
-use actix_web::dev::Server;
 use actix_web::{ HttpRequest, HttpResponse, web, Error };
 use actix_web_actors::ws;
 use actix::prelude::*;
 use actix::Recipient;
-use serde::Serialize;
 use sqlx::MySqlPool;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
 use serde::{Deserialize};
-use crate::error::AppError;
 use crate::services::MessageRepository;
 use crate::utils::JwtUtil;
 use crate::config::AppConfig;
@@ -82,6 +79,7 @@ impl Actor for ChatServer {
     type Context = Context<Self>;
 }
 
+#[allow(dead_code)]
 struct WsSession {
     // TODO(human): 把 id: usize 替换为真实用户身份字段，并修改 new() 的参数和构造
     user_id: i64,
