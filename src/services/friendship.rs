@@ -98,6 +98,24 @@ impl FriednShipService {
     Ok(result)
   }
 
+  pub async fn list_friends(pool: &MySqlPool, user_id: i64) -> Result<Vec<crate::models::User>, AppError> {
+    sqlx::query_as::<_, crate::models::User>(
+      "
+      SELECT u.* FROM users u
+      JOIN friendships f
+        ON (f.requester_id = u.id OR f.receiver_id = u.id)
+      WHERE f.status = 'accepted'
+        AND (f.requester_id = ? OR f.receiver_id = ?)
+        AND u.id != ?"
+    )
+    .bind(user_id)
+    .bind(user_id)
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))
+  }
+
   #[allow(dead_code)]
   pub async fn is_friend(pool: &MySqlPool, requester_id: i64, receiver_id: i64) -> Result<bool, AppError> {
     let result = sqlx::query_as::<_, FriendShip>(

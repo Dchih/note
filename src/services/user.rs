@@ -57,4 +57,16 @@ impl UserService {
     verify(password, hashed)
       .map_err(|e| AppError::Internal(e.to_string()))
   }
+
+  pub async fn search(pool: &MySqlPool, q: &str) -> Result<Vec<User>, AppError> {
+    // todo!()
+    let pattern = format!("%{}%", q);
+    sqlx::query_as::<_, crate::models::User>(
+      "SELECT * FROM users WHERE username LIKE ?"
+    )
+    .bind(&pattern)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))
+  }
 }

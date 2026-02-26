@@ -38,6 +38,11 @@ async fn list_pending(pool: web::Data<MySqlPool>, claims: web::ReqData<Claims>) 
   Ok(HttpResponse::Ok().json(result))
 }
 
+async fn list_friends(pool: web::Data<MySqlPool>, claims: web::ReqData<Claims>) -> Result<HttpResponse, AppError> {
+  let result = FriednShipService::list_friends(pool.get_ref(), claims.sub).await?;
+  Ok(HttpResponse::Ok().json(result))
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
   let jwt_secret = env::var("JWT_SECRET").expect("JWT_SECRET is required");
 
@@ -45,6 +50,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     web::scope("/friendships")
     .wrap(Auth { jwt_secret })
     .route("", web::post().to(send_friendship_request))
+    .route("", web::get().to(list_friends))
     .route("/{id}/accept", web::post().to(accept_friendship))
     .route("/{id}/reject", web::post().to(reject_friendship))
     .route("/pending", web::get().to(list_pending))
