@@ -3,9 +3,9 @@ use sqlx::MySqlPool;
 use crate::{error::AppError, models::FriendShip};
 use crate::models::FriendShipStatus;
 
-pub struct FriednShipService;
+pub struct FriendShipService;
 
-impl FriednShipService {
+impl FriendShipService {
   pub async fn send_request(pool: &MySqlPool, requester_id: i64, receiver_id: i64) -> Result<bool, AppError> {
     if requester_id == receiver_id {
       return Err(AppError::Unauthorized("不能添加自己为好友".to_string()))

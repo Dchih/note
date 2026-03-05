@@ -4,7 +4,7 @@ use actix_web::{ HttpResponse, web};
 use serde::{ Deserialize, Serialize };
 use sqlx::MySqlPool;
 
-use crate::{error::AppError, middleware::Auth, services::FriednShipService, utils::Claims};
+use crate::{error::AppError, middleware::Auth, services::FriendShipService, utils::Claims};
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -14,32 +14,32 @@ pub struct FriendShipReq {
 
 async fn send_friendship_request(pool: web::Data<MySqlPool>, body: web::Json<FriendShipReq>, claims: web::ReqData<Claims>) -> Result<HttpResponse, AppError> {
   let FriendShipReq { receiver_id} = body.into_inner();
-  let result = FriednShipService::send_request(pool.get_ref(), claims.sub, receiver_id).await?;
+  let result = FriendShipService::send_request(pool.get_ref(), claims.sub, receiver_id).await?;
 
   Ok(HttpResponse::Ok().json(result))
 }
 
 async fn accept_friendship(pool: web::Data<MySqlPool>, path: web::Path<i64>, claims: web::ReqData<Claims>) -> Result<HttpResponse, AppError> {
   let friendship_id = path.into_inner();
-  let result = FriednShipService::accept(pool.get_ref(), friendship_id, claims.sub).await?;
+  let result = FriendShipService::accept(pool.get_ref(), friendship_id, claims.sub).await?;
 
   Ok(HttpResponse::Ok().json(result))
 }
 
 async fn reject_friendship(pool: web::Data<MySqlPool>, path: web::Path<i64>, claims: web::ReqData<Claims>) -> Result<HttpResponse, AppError> {
   let friendship_id = path.into_inner();
-  let result = FriednShipService::reject(pool.get_ref(), friendship_id, claims.sub).await?;
+  let result = FriendShipService::reject(pool.get_ref(), friendship_id, claims.sub).await?;
 
   Ok(HttpResponse::Ok().json(result))
 }
 
 async fn list_pending(pool: web::Data<MySqlPool>, claims: web::ReqData<Claims>) -> Result<HttpResponse, AppError> {
-  let result = FriednShipService::list_pending(pool.get_ref(), claims.sub).await?;
+  let result = FriendShipService::list_pending(pool.get_ref(), claims.sub).await?;
   Ok(HttpResponse::Ok().json(result))
 }
 
 async fn list_friends(pool: web::Data<MySqlPool>, claims: web::ReqData<Claims>) -> Result<HttpResponse, AppError> {
-  let result = FriednShipService::list_friends(pool.get_ref(), claims.sub).await?;
+  let result = FriendShipService::list_friends(pool.get_ref(), claims.sub).await?;
   Ok(HttpResponse::Ok().json(result))
 }
 

@@ -37,14 +37,41 @@ Rust + Actix-web 的 WebSocket 聊天应用，带笔记功能。
   - `add_member()` — 插入成员记录
   - 自定义 `ConversationRes` 结构体 (FromRow)
 
-### Code Review 修复 (本次完成)
+### Code Review 修复 (已完成)
 - [x] `ChatMessage.send_time` → `created_at` (字段名与 SQL 列名对齐)
 - [x] 表名统一为复数 `conversations`、单数 `conversation_member`
 - [x] `.try_into().unwrap()` → `as i64` (安全类型转换)
 - [x] `serde_json::to_string().unwrap()` → `if let Ok(json)` (防御性编程)
 - [x] `ConversationType` 加 `Serialize` derive
 
-### 会话管理 — Handler + 路由 (本次完成)
+### 用户查询 (已完成)
+- [x] **UserService::search()** — `src/services/user.rs`
+  - `LIKE` 模糊搜索用户名
+- [x] **User Handler** — `src/handlers/user.rs`
+  - `GET /users/search?q=xxx` — 搜索用户
+  - `GET /users/{id}` — 获取用户信息
+- [x] 路由注册 — `src/routes/mod.rs`
+
+### 好友系统 (已完成)
+- [x] **FriendShip Model** — `src/models/friendship.rs`
+  - `FriendShip` 结构体 (id, requester_id, receiver_id, status, created_at, updated_at)
+  - `FriendShipStatus` 枚举 (Pending / Accepted / Rejected)
+- [x] **FriendShipService** — `src/services/friendship.rs`
+  - `send_request()` — 发送好友请求 (防重复、防自加、被拒后可重发)
+  - `accept()` — 接受好友请求 (仅接收方可操作)
+  - `reject()` — 拒绝好友请求
+  - `list_pending()` — 查询待处理的好友请求
+  - `list_friends()` — 查询好友列表 (JOIN 查询双向关系)
+  - `is_friend()` — 判断两人是否为好友
+- [x] **Friendship Handler** — `src/handlers/friendship.rs`
+  - `POST /friendships` — 发送好友请求
+  - `GET /friendships` — 获取好友列表
+  - `POST /friendships/{id}/accept` — 接受好友请求
+  - `POST /friendships/{id}/reject` — 拒绝好友请求
+  - `GET /friendships/pending` — 查询待处理请求
+- [x] 路由注册 — `src/routes/mod.rs`
+
+### 会话管理 — Handler + 路由 (已完成)
 - [x] 新建 `src/handlers/conversation.rs`
   - `POST /conversations` — 创建会话 (create)
   - `GET /conversations` — 获取我的会话列表 (list)
@@ -65,8 +92,11 @@ Rust + Actix-web 的 WebSocket 聊天应用，带笔记功能。
 
 ### 其他待办
 - [ ] 群聊创建逻辑 (create 中 members_num > 1 分支)
+- [ ] Leave 消息 (退出房间但不断开连接)
+- [ ] 消息格式增强 (ServerMessage 加 type 字段区分聊天/历史/系统消息)
 - [ ] 清理未使用的 import 和 warning
 - [ ] 生产环境配置 (CORS 限制、JWT_SECRET 更换)
+- [ ] FriendShipService 拼写修正 → FriendShipService
 
 ## 关键设计决策
 1. **分层原则** — Service/Repository 层用 `&MySqlPool`，不依赖 `web::Data`
@@ -88,17 +118,21 @@ src/
 │   ├── auth.rs               — 登录/注册
 │   ├── note.rs               — 笔记 CRUD
 │   ├── ws.rs                 — ChatServer + WsSession + WebSocket 路由
-│   └── conversation.rs       — 会话 API (create/list/add_member)
+│   ├── conversation.rs       — 会话 API (create/list/add_member)
+│   ├── friendship.rs         — 好友 API (send/accept/reject/pending/list)
+│   └── user.rs               — 用户 API (search/get)
 ├── middleware/auth.rs        — JWT 认证中间件
 ├── models/
 │   ├── user.rs               — User
 │   ├── note.rs               — Note, CreateNote, UpdateNote
-│   └── conversation.rs       — Conversation, ConversationMember, Message, 枚举
+│   ├── conversation.rs       — Conversation, ConversationMember, Message, 枚举
+│   └── friendship.rs         — FriendShip, FriendShipStatus
 ├── routes/mod.rs             — 路由配置
 ├── services/
-│   ├── user.rs               — UserService
+│   ├── user.rs               — UserService (register/find/search/verify)
 │   ├── note.rs               — NoteService
 │   ├── ws.rs                 — MessageRepository + ChatMessage
-│   └── conversation.rs       — ConversationServices + ConversationRes
+│   ├── conversation.rs       — ConversationServices + ConversationRes
+│   └── friendship.rs         — FriendShipService (send/accept/reject/list)
 └── utils/jwt.rs              — JwtUtil (generate/verify token)
 ```
