@@ -5,12 +5,16 @@ use actix::Recipient;
 use sqlx::MySqlPool;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::time::{ Duration, Instant };
 
 use serde::{Deserialize};
 use crate::services::MessageRepository;
 use crate::utils::JwtUtil;
 use crate::config::AppConfig;
 use crate::services::UserService;
+
+const HEARTBEAT_INTERVAL:Duration = Duration::from_secs(30);
+const CLIENT_TIMEOUT:Duration = Duration::from_secs(60);
 
 #[derive(Message)]
 #[rtype(result = "()")]
