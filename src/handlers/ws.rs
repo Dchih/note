@@ -89,11 +89,12 @@ struct WsSession {
     user_id: i64,
     user_name: String,                                                
     server: Addr<ChatServer>,
-    pool: MySqlPool
+    pool: MySqlPool,
+    hb: Instant
 }
 impl WsSession {
     pub fn new (server: Addr<ChatServer>, user_id: i64, user_name: String, pool: MySqlPool) -> Self {
-        WsSession { user_id, user_name, server, pool }
+        WsSession { user_id, user_name, server, pool, hb: Instant::now() }
     }
 }
 impl Actor for WsSession {
@@ -108,7 +109,16 @@ impl Actor for WsSession {
             addr: addr.recipient(),
         });
 
-        
+        // 在这里启动心跳定时器
+        // ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| { ... })
+        // 闭包内：先判断超时，再发 Ping
+        ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
+            if act.hb.elapsed() > CLIENT_TIMEOUT {
+                ctx.stop();
+            } else {
+                ctx.ping(b"");
+            }
+        });
     }
     fn stopped(&mut self, _ctx: &mut Self::Context) {
         // 注销
@@ -148,6 +158,10 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsSession {
             },
             Ok(ws::Message::Ping(text)) => {
                 ctx.pong(&text);
+            },
+            Ok(ws::Message::Pong(_)) => {
+                // 收到客户端 Pong，刷新 hb 时间戳
+                self.hb = Instant::now();
             },
             _ => {}
         }
